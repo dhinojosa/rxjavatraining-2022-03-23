@@ -14,16 +14,12 @@ public class ObservableTest {
     public void testBasicObservable() {
 
         Observable<Long> longObservable =
-            Observable.create(new ObservableOnSubscribe<Long>() {
-            @Override
-            public void subscribe
-                (@NonNull ObservableEmitter<Long> emitter) throws Exception {
+            Observable.create(emitter -> {
                 emitter.onNext(100L);
                 emitter.onNext(250L);
                 emitter.onNext(440L);
                 emitter.onComplete();
-            }
-        });
+            });
 
         longObservable.subscribe(new Observer<Long>() {
             @Override
