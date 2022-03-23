@@ -21,6 +21,7 @@ public class ObservableTest {
                 emitter.onNext(100L);
                 emitter.onNext(250L);
                 emitter.onNext(440L);
+                emitter.onComplete();
             }
         });
 
