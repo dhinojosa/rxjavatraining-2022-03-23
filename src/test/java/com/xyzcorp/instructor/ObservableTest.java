@@ -1,8 +1,6 @@
 package com.xyzcorp.instructor;
 
 import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.Observer;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
@@ -26,9 +24,11 @@ public class ObservableTest {
             });
 
         longObservable.subscribe(new Observer<Long>() {
-            @Override
-            public void onSubscribe(@NonNull Disposable d) {
+            private Disposable disposable;
 
+            @Override
+            public void onSubscribe(@NonNull Disposable disposable) {
+                this.disposable = disposable;
             }
 
             @Override
@@ -51,9 +51,24 @@ public class ObservableTest {
             }
         });
 
+        Disposable disposable = longObservable.subscribe(
+            aLong -> debug("S2 (OnNext)", aLong),
+            throwable -> System.out.printf("S2 (onError): %s [%s]\n",
+                throwable.getMessage(), Thread.currentThread()),
+            () -> System.out.printf("S2 (onComplete): [%s]\n",
+                Thread.currentThread())
+        );
+
         longObservable.subscribe(
-            aLong -> System.out.printf("S2 (onNext): %d [%s]\n", aLong, Thread.currentThread()),
-            throwable -> System.out.printf("S2 (onError): %s [%s]\n", throwable.getMessage(), Thread.currentThread()),
-            () -> System.out.printf("S2 (onComplete): [%s]\n", Thread.currentThread()));
+            System.out::println,
+            Throwable::printStackTrace,
+            () -> System.out.println("Done"));
+
+        disposable.dispose(); //Powerless because we are running sequentially
+        // on the same thread.
+    }
+
+    public <A> void debug(String label, A item) {
+        System.out.printf("%s: %s [%s]\n", label, item, Thread.currentThread());
     }
 }
