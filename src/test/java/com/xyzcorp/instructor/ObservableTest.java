@@ -6,6 +6,7 @@ import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.Observer;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import org.junit.Test;
 
@@ -50,7 +51,9 @@ public class ObservableTest {
             }
         });
 
-        longObservable.subscribe(aLong ->
-            System.out.printf("S2 (onNext): %d [%s]\n", aLong, Thread.currentThread()));
+        longObservable.subscribe(
+            aLong -> System.out.printf("S2 (onNext): %d [%s]\n", aLong, Thread.currentThread()),
+            throwable -> System.out.printf("S2 (onError): %s [%s]\n", throwable.getMessage(), Thread.currentThread()),
+            () -> System.out.printf("S2 (onComplete): [%s]\n", Thread.currentThread()));
     }
 }
