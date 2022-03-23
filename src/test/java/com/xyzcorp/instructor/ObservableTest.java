@@ -6,6 +6,7 @@ import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.Observer;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
 import org.junit.Test;
 
 public class ObservableTest {
@@ -18,6 +19,8 @@ public class ObservableTest {
                 emitter.onNext(100L);
                 emitter.onNext(250L);
                 emitter.onNext(440L);
+                emitter.onNext(600L);
+                emitter.onNext(10L);
                 emitter.onComplete();
             });
 
@@ -35,6 +38,7 @@ public class ObservableTest {
 
             @Override
             public void onError(@NonNull Throwable e) {
+                e.printStackTrace();
                 System.out.printf("S1 (onError): %s [%s]\n",
                     e.getMessage(), Thread.currentThread());
             }
@@ -45,5 +49,8 @@ public class ObservableTest {
                     Thread.currentThread());
             }
         });
+
+        longObservable.subscribe(aLong ->
+            System.out.printf("S2 (onNext): %d [%s]\n", aLong, Thread.currentThread()));
     }
 }
