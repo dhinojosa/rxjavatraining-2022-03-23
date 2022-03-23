@@ -53,10 +53,8 @@ public class ObservableTest {
 
         Disposable disposable = longObservable.subscribe(
             aLong -> debug("S2 (OnNext)", aLong),
-            throwable -> System.out.printf("S2 (onError): %s [%s]\n",
-                throwable.getMessage(), Thread.currentThread()),
-            () -> System.out.printf("S2 (onComplete): [%s]\n",
-                Thread.currentThread())
+            throwable -> debug("S2 (On Error)", throwable),
+            () -> debugComplete("S2")
         );
 
         longObservable.subscribe(
@@ -70,5 +68,9 @@ public class ObservableTest {
 
     public <A> void debug(String label, A item) {
         System.out.printf("%s: %s [%s]\n", label, item, Thread.currentThread());
+    }
+
+    public void debugComplete(String label) {
+        System.out.printf("%s (On Complete: [%s]\n", label, Thread.currentThread());
     }
 }
