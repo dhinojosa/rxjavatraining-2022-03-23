@@ -1,17 +1,14 @@
 package com.xyzcorp.instructor;
 
 import io.reactivex.Observable;
-import io.reactivex.ObservableSource;
 import io.reactivex.Observer;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Predicate;
 import org.junit.Test;
 
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -92,7 +89,7 @@ public class ObservableTest {
         //Supplier: void -> x
 
         Observable<String> stringObservable = Observable
-            .just(10, 40, 320, 100, 0 , 19, 600)
+            .just(10, 40, 320, 100, 0, 19, 600)
             .doOnNext(integer -> debug("i1", integer))
             .map(x -> 100 / x)
             .doOnNext(integer -> debug("i2", integer))
@@ -100,7 +97,9 @@ public class ObservableTest {
 
 
         stringObservable.retry(4)
-            .subscribe(System.out::println, Throwable::printStackTrace, () -> System.out.println("Done"));
+                        .subscribe(System.out::println,
+                            Throwable::printStackTrace,
+                            () -> System.out.println("Done"));
 
         System.out.println("----------");
 
@@ -143,8 +142,8 @@ public class ObservableTest {
     @Test
     public void testInterval() throws InterruptedException {
         Observable.interval(2, TimeUnit.SECONDS)
-            .doOnNext(i -> debug("i1", i))
-            .subscribe(System.out::println);
+                  .doOnNext(i -> debug("i1", i))
+                  .subscribe(System.out::println);
         Thread.sleep(10000);
     }
 
@@ -153,28 +152,80 @@ public class ObservableTest {
         Observable<ZonedDateTime> zonedDateTimeObservable =
             Observable.defer(() -> Observable.just(ZonedDateTime.now()));
 
-        zonedDateTimeObservable.subscribe(s -> System.out.printf("S1: %s\n", s));
+        zonedDateTimeObservable.subscribe(s -> System.out.printf("S1: %s\n",
+            s));
 
         Thread.sleep(4000);
 
-        zonedDateTimeObservable.subscribe(s -> System.out.printf("S2: %s\n", s));
+        zonedDateTimeObservable.subscribe(s -> System.out.printf("S2: %s\n",
+            s));
     }
 
     @Test
     public void testSameDeferWithoutDefer() throws InterruptedException {
-        Observable<ZonedDateTime> zonedDateTimeObservable = Observable.just(ZonedDateTime.now());
+        Observable<ZonedDateTime> zonedDateTimeObservable =
+            Observable.just(ZonedDateTime.now());
 
-        zonedDateTimeObservable.subscribe(s -> System.out.printf("S1: %s\n", s));
+        zonedDateTimeObservable.subscribe(s -> System.out.printf("S1: %s\n",
+            s));
 
         Thread.sleep(4000);
 
-        zonedDateTimeObservable.subscribe(s -> System.out.printf("S2: %s\n", s));
+        zonedDateTimeObservable.subscribe(s -> System.out.printf("S2: %s\n",
+            s));
     }
 
-    //1. Interval of 1 second (This is the source observable)
-    //2. Create 2 forks
-    //     a. multiply each element by 2 and subscribe
-    //     b. filter all the odd numbers and subscribe
-    //3. Put Thread.sleep(10000) at the end
-    //4. Use debug and doOnNext where you feel it is necessary
+
+    @Test
+    public void testCreateWithPublisher() throws InterruptedException {
+        Observable<Long> longObservable =
+            Observable.fromPublisher(new MyPublisher(Executors.newFixedThreadPool(19)));
+
+        longObservable.subscribe(System.out::println);
+        Thread.sleep(10000);
+    }
+
+
+    @Test
+    public void testFlatMap() {
+
+
+        Observable<Integer> integerObservable1 = Observable
+            .just(1, 3, 4, 10)
+            .map(i -> Observable.just(i + 1, i * 2, i * i))
+            .flatMap(integerObservable -> integerObservable.firstElement().toObservable());
+
+        integerObservable1.subscribe(System.out::println);
+
+        Observable<Integer> map =
+            Observable.just(1, 3, 4, 10).map(x -> x + 1).map(x -> x * 2).map(x -> x * x);
+
+        System.out.println("------------");
+        map.subscribe(System.out::println);
+    }
+
+
+    @Test
+    public void testResumeIfError() {
+        Observable
+            .just(10, 20, 50, 0, 100, 25)
+            .flatMap(this::divideHundredBy)
+            .subscribe(System.out::println,
+                Throwable::printStackTrace,
+                () -> System.out.println("Done"));
+
+    }
+
+    private Observable<Integer> divideHundredBy(Integer x) {
+        try {
+            return Observable.just(100 / x);
+        } catch (ArithmeticException e) {
+            return Observable.empty();
+        }
+    }
 }
+
+
+
+
+
