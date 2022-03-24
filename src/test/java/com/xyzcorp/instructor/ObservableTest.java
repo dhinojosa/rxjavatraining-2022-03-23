@@ -1,13 +1,18 @@
 package com.xyzcorp.instructor;
 
+import com.xyzcorp.Employee;
+import com.xyzcorp.Manager;
+import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Observer;
+import io.reactivex.Single;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
 import org.junit.Test;
 
 import java.time.ZonedDateTime;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -222,6 +227,74 @@ public class ObservableTest {
         } catch (ArithmeticException e) {
             return Observable.empty();
         }
+    }
+
+    @Test
+    public void testSingle() {
+        Single<Integer> integerSingle = Single.just(30);
+        Maybe<Integer> integerMaybe = Maybe.just(40);
+    }
+
+    @Test
+    public void testReduce() {
+        Single<Integer> integerMaybe =
+            Observable.just(10, 40, 30, 100).reduce(0, (total, next) -> {
+                System.out.printf("total: %d, next: %d\n", total, next);
+                return Integer.sum(total, next);
+            });
+
+        integerMaybe.subscribe(System.out::println);
+
+        Maybe<Integer> integerMaybe2 =
+            Observable.<Integer>empty().reduce((a, b) -> Integer.sum(a, b));
+    }
+
+
+    @Test
+    public void testConcat() {
+        Observable
+            .concat(Observable.just(30), Observable.just(60, 80, 0, 40))
+            .map(x -> 100 / x)
+            .onErrorResumeNext(throwable -> {
+                if (throwable instanceof ArithmeticException) {
+                    return Observable.just(0, 5, 4, 3);
+                }
+                return Observable.empty();
+            })
+            .subscribe(System.out::println);
+    }
+
+    @Test
+    public void testFlatMap2() {
+        List<Employee> jkRowlingsEmployees =
+            Arrays.asList(
+                new Employee("Harry", "Potter", 30000),
+                new Employee("Hermione", "Granger", 32000),
+                new Employee("Ron", "Weasley", 32000),
+                new Employee("Albus", "Dumbledore", 40000));
+
+        Manager jkRowling =
+            new Manager("J.K", "Rowling", 46000, jkRowlingsEmployees);
+
+        List<Employee> georgeLucasEmployees =
+            Arrays.asList(
+                new Employee("Luke", "Skywalker", 33000),
+                new Employee("Leia", "Organa", 36000),
+                new Employee("Han", "Solo", 36000),
+                new Employee("Lando", "Calrissian", 41000));
+
+        Manager georgeLucas =
+            new Manager("George", "Lucas", 46000, georgeLucasEmployees);
+
+        Observable<Manager> managerObservable =
+            Observable.just(jkRowling, georgeLucas);
+
+        //1. Get the total salaries of all the employees
+        //2. Get the total salaries of all the employees and the managers
+        //IMPORTANT: You can only reference and use managerObservable
+
+
+
     }
 }
 
