@@ -2,24 +2,19 @@ package com.xyzcorp.instructor;
 
 import com.xyzcorp.Employee;
 import com.xyzcorp.Manager;
-import com.xyzcorp.Pair;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Observer;
 import io.reactivex.Single;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.BiConsumer;
-import io.reactivex.functions.BiFunction;
-import io.reactivex.functions.Function;
 import io.reactivex.observables.GroupedObservable;
-import io.reactivex.schedulers.Schedulers;
+import io.reactivex.observers.TestObserver;
+import io.reactivex.schedulers.TestScheduler;
 import org.junit.Test;
 
-import java.io.Serializable;
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -341,11 +336,11 @@ public class ObservableTest {
         Single<HashMap<String, List<Integer>>> collect = groupBy
             .collect(HashMap::new,
                 (map, go) -> go.subscribe(i -> {
-                List<Integer> integers = map.getOrDefault(go.getKey(),
-                    new ArrayList<>());
-                integers.add(i);
-                map.put(go.getKey(), integers);
-            }));
+                    List<Integer> integers = map.getOrDefault(go.getKey(),
+                        new ArrayList<>());
+                    integers.add(i);
+                    map.put(go.getKey(), integers);
+                }));
 
         //Even: [10, 20, 50, 78, 100, 22]
         //Odd: [23, 55, 103, 501]
@@ -386,7 +381,8 @@ public class ObservableTest {
 
     @Test
     public void testMergeAgainButDifferentThreads() throws InterruptedException {
-        Observable<Long> o1 = Observable.interval(1, TimeUnit.SECONDS).map(i -> i * 1000);
+        Observable<Long> o1 =
+            Observable.interval(1, TimeUnit.SECONDS).map(i -> i * 1000);
         Observable<Long> o2 = Observable.interval(1, TimeUnit.SECONDS);
         Observable.merge(o1, o2).subscribe(System.out::println);
 
@@ -430,9 +426,108 @@ public class ObservableTest {
             }).map(o -> String.format("%d. %s", o.index, o.name));
 
         map.subscribe(System.out::println);
+    }
 
+    @Test
+    public void testWithObserver() {
+        Observable<String> groceries = Observable.just(
+            "Almonds",
+            "Naan",
+            "Eggs",
+            "Broccoli",
+            "Pineapple",
+            "Potatoes");
+
+        Observable<String> result = Observable.zip(groceries, Observable.range(1
+            , 1000), (x, y) -> y + ". " + x);
+
+        TestObserver<String> testObserver = result.test();
+
+        testObserver.assertValues("1. Almonds", "2. Naan", "3. Eggs",
+            "4. Broccoli", "5. Pineapple", "6. Potatoes");
+
+        testObserver.assertValueAt(0, s -> s.equals("1. Almonds"));
+        testObserver.assertValueAt(1, s -> s.equals("2. Naan"));
+        testObserver.assertValueAt(5, s -> s.equals("6. Potatoes"));
+    }
+
+    @Test
+    public void testZipWithControlOfTime() throws InterruptedException {
+        Observable<String> groceries = Observable.just(
+            "Almonds",
+            "Naan",
+            "Eggs",
+            "Broccoli",
+            "Pineapple",
+            "Potatoes");
+
+
+        TestScheduler testScheduler = new TestScheduler();
+        Observable<Long> interval = Observable
+            .interval(1, TimeUnit.SECONDS, testScheduler);
+
+        Observable<Long> range =
+            interval.map(i -> i + 1);
+
+        Observable<String> stringObservable =
+            groceries
+                .zipWith(range,
+                    (s, integer) -> String.format("%d. %s", integer, s));
+
+        TestObserver<String> testObserver = new TestObserver<>();
+        stringObservable.subscribe(testObserver);
+
+        testScheduler.advanceTimeBy(2, TimeUnit.SECONDS);
+        testObserver.assertNoErrors();
+        testObserver.assertValues(
+            "1. Almonds",
+            "2. Naan");
+
+        testScheduler.advanceTimeBy(2, TimeUnit.SECONDS);
+        testObserver.assertNoErrors();
+        testObserver.assertValues(
+            "1. Almonds",
+            "2. Naan",
+            "3. Eggs",
+            "4. Broccoli");
+
+        testScheduler.advanceTimeBy(2, TimeUnit.SECONDS);
+        testObserver.assertNoErrors();
+        testObserver.assertValues(
+            "1. Almonds",
+            "2. Naan",
+            "3. Eggs",
+            "4. Broccoli",
+            "5. Pineapple",
+            "6. Potatoes"
+        );
+    }
+
+    @Test
+    public void testSchedulers() {
+        Observable
+            .just(10, 30, 40, 90, 101)
+            .doOnNext(i -> debug("L1", i))
+            .map(x -> x + 1)
+            .doOnNext(i -> debug("L2", i))
+            .subscribe(System.out::println);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
