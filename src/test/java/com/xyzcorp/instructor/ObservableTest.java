@@ -2,18 +2,24 @@ package com.xyzcorp.instructor;
 
 import com.xyzcorp.Employee;
 import com.xyzcorp.Manager;
+import com.xyzcorp.Pair;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.Observer;
 import io.reactivex.Single;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.BiConsumer;
+import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Function;
+import io.reactivex.observables.GroupedObservable;
+import io.reactivex.schedulers.Schedulers;
 import org.junit.Test;
 
+import java.io.Serializable;
 import java.time.ZonedDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -293,7 +299,137 @@ public class ObservableTest {
         //2. Get the total salaries of all the employees and the managers
         //IMPORTANT: You can only reference and use managerObservable
 
+        managerObservable
+            .flatMap(m -> Observable.fromIterable(m.getEmployees()))
+            .map(Employee::getSalary)
+            .reduce(Integer::sum)
+            .subscribe(System.out::println);
 
+        managerObservable
+            .flatMap(m -> Observable.<Employee>concat(Observable.fromIterable(m.getEmployees()), Observable.just(m)))
+            .map(Employee::getSalary)
+            .reduce(Integer::sum)
+            .subscribe(System.out::println);
+
+        managerObservable
+            .map(m -> m.getSalary())
+            .reduce(Integer::sum);
+    }
+
+    @Test
+    public void testGroupBy() {
+        Observable<Integer> just = Observable
+            .just(10, 20, 50, 100, 22, 23, 55, 78, 103, 501);
+
+
+        Observable<GroupedObservable<String, Integer>> observable = just
+            .groupBy(integer -> integer % 2 == 0 ? "Even" : "Odd");
+
+        observable.subscribe(go ->
+            go.subscribe(i -> System.out.println(go.getKey() + ":" + i)));
+    }
+
+    @Test
+    public void testGroupByCategorization() {
+        Observable<Integer> just = Observable
+            .just(10, 20, 50, 100, 22, 23, 55, 78, 103, 501);
+
+        Observable<GroupedObservable<String, Integer>> groupBy = just
+            .groupBy(integer -> integer % 2 == 0 ? "Even" : "Odd");
+
+
+        Single<HashMap<String, List<Integer>>> collect = groupBy
+            .collect(HashMap::new,
+                (map, go) -> go.subscribe(i -> {
+                List<Integer> integers = map.getOrDefault(go.getKey(),
+                    new ArrayList<>());
+                integers.add(i);
+                map.put(go.getKey(), integers);
+            }));
+
+        //Even: [10, 20, 50, 78, 100, 22]
+        //Odd: [23, 55, 103, 501]
+
+        Single<Map<String, List<Integer>>> mapSingle =
+            groupBy.toMap(go -> go.getKey(),
+                stringIntegerGroupedObservable -> stringIntegerGroupedObservable.toList().blockingGet());
+
+        mapSingle.subscribe(m -> System.out.println(m));
+//        collect.subscribe(m -> System.out.println(m));
+    }
+
+
+    @Test
+    public void testStartWith() {
+        Observable.just(1, 2, 3, 4)
+                  .startWith(Observable.just(-1, 0))
+                  .subscribe(System.out::println);
+    }
+
+    @Test
+    public void testRepeat() {
+        Observable.just(1, 2, 3).repeat(4).subscribe(System.out::println);
+    }
+
+    @Test
+    public void testMerge() {
+        Observable<Integer> observable1 =
+            Observable.just(1, 2, 3, 4);
+        Observable<Integer> observable2 =
+            Observable.just(100, 200, 300, 400);
+
+        Observable<Integer> merge =
+            Observable.merge(observable1, observable2);
+
+        merge.subscribe(System.out::println);
+    }
+
+    @Test
+    public void testMergeAgainButDifferentThreads() throws InterruptedException {
+        Observable<Long> o1 = Observable.interval(1, TimeUnit.SECONDS).map(i -> i * 1000);
+        Observable<Long> o2 = Observable.interval(1, TimeUnit.SECONDS);
+        Observable.merge(o1, o2).subscribe(System.out::println);
+
+        Thread.sleep(10000);
+    }
+
+    @Test
+    public void testAmb() throws InterruptedException {
+        Observable<Integer> o1 = Observable.range(1, 10)
+                                           .delay(5, TimeUnit.SECONDS);
+
+        Observable<Integer> o2 = Observable.range(10, 10)
+                                           .delay(2, TimeUnit.SECONDS);
+
+        Observable<Integer> o3 = Observable.range(20, 10)
+                                           .delay(15, TimeUnit.SECONDS);
+
+        Observable.amb(Arrays.asList(o1, o2, o3)).subscribe(System.out::println);
+
+        Thread.sleep(30000);
+    }
+
+    @Test
+    public void testZip() {
+
+        Observable<String> groceries = Observable.just(
+            "Almonds",
+            "Naan",
+            "Eggs",
+            "Broccoli",
+            "Pineapple",
+            "Potatoes");
+
+        Observable<Integer> integers = Observable.range(1, 1000);
+
+        //non-denotable-type
+        Observable<String> map = Observable.zip(integers,
+            groceries, (integer, s) -> new Object() {
+                final String name = s;
+                final Integer index = integer;
+            }).map(o -> String.format("%d. %s", o.index, o.name));
+
+        map.subscribe(System.out::println);
 
     }
 }
