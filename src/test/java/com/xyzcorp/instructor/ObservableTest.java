@@ -8,8 +8,10 @@ import io.reactivex.Observer;
 import io.reactivex.Single;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
 import io.reactivex.observables.GroupedObservable;
 import io.reactivex.observers.TestObserver;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.schedulers.TestScheduler;
 import org.junit.Test;
 
@@ -504,13 +506,39 @@ public class ObservableTest {
     }
 
     @Test
-    public void testSchedulers() {
+    public void testSchedulers() throws InterruptedException {
+        ExecutorService executorService = Executors.newFixedThreadPool(4);
         Observable
             .just(10, 30, 40, 90, 101)
+            .doOnNext(i -> debug("L0", i))
+            .observeOn(Schedulers.computation())
             .doOnNext(i -> debug("L1", i))
             .map(x -> x + 1)
+            .observeOn(Schedulers.from(executorService))
             .doOnNext(i -> debug("L2", i))
+            .subscribeOn(Schedulers.io())
             .subscribe(System.out::println);
+
+        Thread.sleep(10000);
+    }
+
+    @Test
+    public void testTrampoline() throws InterruptedException {
+        Consumer<Integer> onNext = new Consumer<Integer>() {
+            @Override public void accept(Integer integer) {
+                System.out.format("%d [%s]\n", integer, Thread.currentThread());
+            }
+        };
+        Observable.just(2, 4, 6, 8, 10)
+                  .subscribeOn(Schedulers.io())
+                  .subscribe(onNext);
+
+        Observable.just(1, 3, 5, 7, 9)
+                  .subscribeOn(Schedulers.io())
+                  .subscribe(onNext);
+
+        Thread.sleep(10000);
+
     }
 }
 
